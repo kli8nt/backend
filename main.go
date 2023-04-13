@@ -10,6 +10,8 @@ import (
 	"os"
 
 	"github.com/adamlahbib/gitaz/cmd/create"
+	"github.com/adamlahbib/gitaz/cmd/image"
+
 	"github.com/joho/godotenv"
 )
 
@@ -67,10 +69,26 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 		log.Panic(err)
 	}
 
-	// create hook
-	_, err = create.CreateHook(client, "asauce0972", "tp_net", "https://eovxryzicqvvnn7.m.pipedream.net", []string{"push"})
+	// check if hook exists
+
+	exists, err := create.HookExists(client, "asauce0972", "tp_net", "https://eovxryzicqvvnn7.m.pipedream.net")
 	if err != nil {
 		log.Panic(err)
+	}
+
+	if !exists {
+		// create hook
+		_, err = create.CreateHook(client, "asauce0972", "tp_net", "https://eovxryzicqvvnn7.m.pipedream.net", []string{"push"})
+		if err != nil {
+			log.Panic(err)
+		}
+	}
+
+	// clone repo locally
+	err = image.CloneRepo("https://github.com/asauce0972/tp_net.git", githubAccessToken, "repos")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
 	}
 
 	log.Println(deploymentStatus)
