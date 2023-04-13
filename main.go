@@ -9,8 +9,11 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/adamlahbib/gitaz/cmd/create"
 	"github.com/joho/godotenv"
 )
+
+var githubAccessToken string
 
 func init() {
 	// loads values from .env into the system
@@ -39,6 +42,19 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 
 	// Return the prettified JSON as a string
 	fmt.Fprintf(w, string(prettyJSON.Bytes()))
+
+	// create github client
+	log.Println(githubAccessToken)
+	client := create.NewClient(githubAccessToken)
+
+	// create deployment
+	deployment, err := create.CreateDeployment(client, "asauce0972", "tp_net", "main", "production", "test")
+	if err != nil {
+		log.Panic(err)
+	}
+
+	log.Println(deployment)
+
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +101,7 @@ func githubLoginHandler(w http.ResponseWriter, r *http.Request) {
 func githubCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 
-	githubAccessToken := getGithubAccessToken(code)
+	githubAccessToken = getGithubAccessToken(code)
 
 	githubData := getGithubData(githubAccessToken)
 
