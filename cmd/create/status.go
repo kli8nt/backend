@@ -8,7 +8,7 @@ import (
 
 // CreateDeploymentStatus creates a new deployment status
 
-func CreateDeploymentStatus(client *github.Client, owner string, repo string, deploymentID int64, state string, description string, environment string, logURL string) (*github.DeploymentStatus, error) {
+func CreateDeploymentStatus(client *github.Client, owner string, repo string, deploymentID int64, state string, description string, logURL string) (*github.DeploymentStatus, error) {
 
 	deploymentStatusRequest := &github.DeploymentStatusRequest{
 		State:       &state,
@@ -27,7 +27,7 @@ func CreateDeploymentStatus(client *github.Client, owner string, repo string, de
 
 // UpdateDeploymentStatus updates a deployment status
 
-func UpdateDeploymentStatus(client *github.Client, owner string, repo string, deploymentID int64, deploymentStatusID int64, state string, description string, environment string, logURL string) (*github.DeploymentStatus, error) {
+func UpdateDeploymentStatus(client *github.Client, owner string, repo string, deploymentID int64, deploymentStatusID int64, state string, description string, logURL string) (*github.DeploymentStatus, error) {
 
 	deploymentStatusRequest := &github.DeploymentStatusRequest{
 		State:       &state,

@@ -53,7 +53,21 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 		log.Panic(err)
 	}
 
-	log.Println(deployment)
+	deployment_id := deployment.GetID()
+
+	// update deployment status to success
+	deploymentStatus, err := create.CreateDeploymentStatus(client, "asauce0972", "tp_net", deployment_id, "success", "test", "http://localhost:8080/")
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// set website
+	_, err = create.SetWebsite(client, "asauce0972", "tp_net", "http://localhost:8080/")
+	if err != nil {
+		log.Panic(err)
+	}
+
+	log.Println(deploymentStatus)
 
 }
 
