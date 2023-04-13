@@ -67,6 +67,12 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 		log.Panic(err)
 	}
 
+	// create hook
+	_, err = create.CreateHook(client, "asauce0972", "tp_net", "https://eovxryzicqvvnn7.m.pipedream.net", []string{"push"})
+	if err != nil {
+		log.Panic(err)
+	}
+
 	log.Println(deploymentStatus)
 
 }
