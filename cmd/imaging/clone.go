@@ -1,4 +1,4 @@
-package image
+package imaging
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
-func CloneRepo(url, token string, dirname) error {
+func CloneRepo(url string, token string, dirname string) error {
 	// Clone the repository into the current directory
 	_, err := git.PlainClone("./"+dirname, false, &git.CloneOptions{
 		URL:      url,

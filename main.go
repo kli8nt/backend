@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/adamlahbib/gitaz/cmd/create"
-	"github.com/adamlahbib/gitaz/cmd/image"
+	"github.com/adamlahbib/gitaz/cmd/imaging"
 
 	"github.com/joho/godotenv"
 )
@@ -85,7 +85,14 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 	}
 
 	// clone repo locally
-	err = image.CloneRepo("https://github.com/asauce0972/tp_net.git", githubAccessToken, "repos")
+	err = imaging.CloneRepo("https://github.com/asauce0972/tp_net.git", githubAccessToken, "repos")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	// build image and push
+	err = imaging.Build("repos", "tp_net", "latest")
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
