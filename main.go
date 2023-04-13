@@ -92,7 +92,7 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 	}
 
 	// build image and push
-	err = imaging.Build("repos", "tp_net", "latest")
+	err = imaging.Build("repos", "tpnet", "latest")
 	if err != nil {
 		fmt.Println("Error:", err)
 		return

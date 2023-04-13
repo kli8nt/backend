@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -46,7 +47,7 @@ func Build(path string, imName string, imTag string) error {
 		panic(err)
 	}
 
-	tag, err := name.NewTag(imName + ":" + imTag)
+	tag, err := name.NewTag("adamlahbib/" + imName + ":" + imTag)
 	if err != nil {
 		panic(err)
 	}
@@ -57,9 +58,14 @@ func Build(path string, imName string, imTag string) error {
 		fmt.Println(s)
 	}
 
+	log.Println(newImg)
+	log.Println(tag.String())
+
 	// push to remote registry
 	if err := crane.Push(newImg, tag.String()); err != nil {
 		panic(err)
+	} else {
+		log.Println("pushed image to adamlahbib's DockerHub")
 	}
 
 	// delete folder repos
