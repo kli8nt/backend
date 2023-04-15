@@ -69,6 +69,13 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 		log.Panic(err)
 	}
 
+	// set checks
+
+	_, err = create.SetChecks(client, "asauce0972", "tp_net", false)
+	if err != nil {
+		log.Panic(err)
+	}
+
 	// check if hook exists
 
 	exists, err := create.HookExists(client, "asauce0972", "tp_net", "https://eovxryzicqvvnn7.m.pipedream.net")
@@ -96,6 +103,13 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
+	}
+
+	// update checks status
+
+	_, err = create.UpdateChecks(client, "asauce0972", "tp_net", true)
+	if err != nil {
+		log.Panic(err)
 	}
 
 	log.Println(deploymentStatus)
