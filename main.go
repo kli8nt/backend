@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/adamlahbib/gitaz/cmd/create"
+	"github.com/adamlahbib/gitaz/cmd/imaging"
 
 	"github.com/joho/godotenv"
 )
@@ -73,12 +74,15 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 		log.Panic(err)
 	}
 
-	// set checks
+	// create check run
+	// checkRun, err := create.CreateCheckRun(client, "asauce0972", "tp_net", "main")
+	// if err != nil {
+	// 	log.Panic(err)
+	// }
 
-	_, err = create.SetChecks(client, "asauce0972", "tp_net", false)
-	if err != nil {
-		log.Panic(err)
-	}
+	// checkRunID := int64(checkRun.GetID())
+
+	// log.Println(checkRunID)
 
 	// check if hook exists
 
@@ -94,27 +98,26 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 			log.Panic(err)
 		}
 	}
-	/*
-		// clone repo locally
-		err = imaging.CloneRepo("https://github.com/asauce0972/tp_net.git", githubAccessToken, "repos")
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
 
-		// build image and push
-		err = imaging.Build("repos", "tpnet", "latest")
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-	*/
+	// clone repo locally
+	err = imaging.CloneRepo("https://github.com/asauce0972/tp_net.git", githubAccessToken, "repos")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	// build image and push
+	err = imaging.Build("repos", "tpnet", "latest")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
 
 	// update checks status
-	_, err = create.UpdateChecks(client, "asauce0972", "tp_net", true)
-	if err != nil {
-		log.Panic(err)
-	}
+	// err = create.UpdateCheckRunStatus(client, "asauce0972", "tp_net", checkRunID, "completed")
+	// if err != nil {
+	// 	log.Panic(err)
+	// }
 
 	// create a record in cloudflare
 	err = create.CreateCNAME(clientCloudflare, os.Getenv("CLOUDFLARE_ZONEID"), "tpnet", "tpnet.asauce0972.repl.co", false)
@@ -161,8 +164,8 @@ func githubLoginHandler(w http.ResponseWriter, r *http.Request) {
 		"http://localhost:3000/login/github/callback",
 	)
 
-	// add scopes X-OAuth-Scopes: repo, user
-	redirectURL = fmt.Sprintf("%s&scope=%s", redirectURL, "repo,user")
+	// add scopes X-OAuth-Scopes: repo, user, checkruns:write
+	redirectURL = fmt.Sprintf("%s&scope=%s", redirectURL, "repo,user,checkruns:write")
 
 	http.Redirect(w, r, redirectURL, 301)
 }

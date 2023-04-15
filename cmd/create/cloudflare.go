@@ -28,3 +28,5 @@ func CreateCNAME(client *cloudflare.API, zoneID string, name string, target stri
 
 	return nil
 }
+
+// TODO: delete a cname record
