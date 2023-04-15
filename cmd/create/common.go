@@ -2,10 +2,22 @@ package create
 
 import (
 	"context"
+	"log"
 
+	"github.com/cloudflare/cloudflare-go"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 )
+
+// new cloudflare client
+
+func NewCloudflareClient(token string, email string) *cloudflare.API {
+	client, err := cloudflare.New(token, email)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return client
+}
 
 // CommonOptions is the common create command options.
 type CommonOptions struct {

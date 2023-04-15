@@ -10,7 +10,6 @@ import (
 	"os"
 
 	"github.com/adamlahbib/gitaz/cmd/create"
-	"github.com/adamlahbib/gitaz/cmd/imaging"
 
 	"github.com/joho/godotenv"
 )
@@ -48,6 +47,11 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 	// create github client
 	log.Println(githubAccessToken)
 	client := create.NewClient(githubAccessToken)
+
+	// create cloudflare client
+	clientCloudflare := create.NewCloudflareClient(os.Getenv("CLOUDFLARE_TOKEN"), os.Getenv("CLOUDFLARE_EMAIL"))
+
+	log.Println(clientCloudflare)
 
 	// create deployment
 	deployment, err := create.CreateDeployment(client, "asauce0972", "tp_net", "main", "production", "test")
@@ -90,24 +94,30 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 			log.Panic(err)
 		}
 	}
+	/*
+		// clone repo locally
+		err = imaging.CloneRepo("https://github.com/asauce0972/tp_net.git", githubAccessToken, "repos")
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
 
-	// clone repo locally
-	err = imaging.CloneRepo("https://github.com/asauce0972/tp_net.git", githubAccessToken, "repos")
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-
-	// build image and push
-	err = imaging.Build("repos", "tpnet", "latest")
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
+		// build image and push
+		err = imaging.Build("repos", "tpnet", "latest")
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+	*/
 
 	// update checks status
-
 	_, err = create.UpdateChecks(client, "asauce0972", "tp_net", true)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// create a record in cloudflare
+	err = create.CreateCNAME(clientCloudflare, os.Getenv("CLOUDFLARE_ZONEID"), "tpnet", "tpnet.asauce0972.repl.co", false)
 	if err != nil {
 		log.Panic(err)
 	}
