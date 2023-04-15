@@ -74,17 +74,11 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 		log.Panic(err)
 	}
 
-	// create check run
-	// checkRun, err := create.CreateCheckRun(client, "asauce0972", "tp_net", "main")
-	// if err != nil {
-	// 	log.Panic(err)
-	// }
-
-	// checkRunID := int64(checkRun.GetID())
-
-	// log.Println(checkRunID)
-
-	// check if hook exists
+	// create status check
+	_, err = create.CreateStatusCheck(client, "asauce0972", "tp_net", "main", "pending", "test", "http://localhost:8080/", "test")
+	if err != nil {
+		log.Panic(err)
+	}
 
 	exists, err := create.HookExists(client, "asauce0972", "tp_net", "https://eovxryzicqvvnn7.m.pipedream.net")
 	if err != nil {
@@ -113,11 +107,11 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 		return
 	}
 
-	// update checks status
-	// err = create.UpdateCheckRunStatus(client, "asauce0972", "tp_net", checkRunID, "completed")
-	// if err != nil {
-	// 	log.Panic(err)
-	// }
+	// create status check success
+	_, err = create.CreateStatusCheck(client, "asauce0972", "tp_net", "main", "success", "test", "http://localhost:8080/", "test")
+	if err != nil {
+		log.Panic(err)
+	}
 
 	// create a record in cloudflare
 	err = create.CreateCNAME(clientCloudflare, os.Getenv("CLOUDFLARE_ZONEID"), "tpnet", "tpnet.asauce0972.repl.co", false)
@@ -164,8 +158,8 @@ func githubLoginHandler(w http.ResponseWriter, r *http.Request) {
 		"http://localhost:3000/login/github/callback",
 	)
 
-	// add scopes X-OAuth-Scopes: repo, user, checkruns:write
-	redirectURL = fmt.Sprintf("%s&scope=%s", redirectURL, "repo,user,checkruns:write")
+	// add scopes X-OAuth-Scopes: repo, user
+	redirectURL = fmt.Sprintf("%s&scope=%s", redirectURL, "repo,user")
 
 	http.Redirect(w, r, redirectURL, 301)
 }
