@@ -7,9 +7,10 @@
 - [x] Making Git hook for future push triggers
 - [x] Making Git Status Check when starting the process and when done! 
 - [x] Allocating subdomain CNAME using Cloudflare API
-- [x] Database models and intializers
+- [x] Database models and intializers 
+- [ ] Controllers logic
 - [ ] Saving and fetching data to/from DB
-- [ ] Go Gin CRUDS
+- [ ] Go Gin CRUDS (watch for the hook, user repos, user data etc.)
 - [ ] Template-based container image (React, Angular... Express, Nest, Python, Java... DB)
 - [ ] Redis PubSub to communicate with the Kubernetes layer  
 - [ ] Dockerizing the whole backend for use in Google Cloud.  
