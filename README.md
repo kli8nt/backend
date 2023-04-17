@@ -6,6 +6,8 @@
 - [x] Making deployment environment using Github deployment API
 - [x] Making Git hook for future push triggers
 - [x] Making Git Status Check when starting the process and when done! 
+- [x] Adding website to repo about section 
+- [x] Making deployment environemnt active and adding logs url (if available)
 - [x] Allocating subdomain CNAME using Cloudflare API
 - [x] Database models and intializers 
 - [ ] Controllers logic
