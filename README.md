@@ -10,9 +10,9 @@
 - [x] Making deployment environemnt active and adding logs url (if available)
 - [x] Allocating subdomain CNAME using Cloudflare API
 - [x] Database models and intializers 
-- [ ] Controllers logic
-- [ ] Saving and fetching data to/from DB
-- [ ] Go Gin CRUDS (watch for the hook, user repos, user data etc.)
+- [x] Controllers logic (90%)
+- [x] Saving and fetching data to/from DB
+- [ ] Go Gin CRUDS (watch for the hook, user repos, user data etc.) (for now, still update, deplyment and hook to test)
 - [ ] Template-based container image (React, Angular... Express, Nest, Python, Java... DB)
 - [ ] Redis PubSub to communicate with the Kubernetes layer  
-- [ ] Dockerizing the whole backend for use in Google Cloud.  
+- [ ] Dockerizing the whole backend for use in Google Cloud. (on it...)
