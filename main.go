@@ -24,6 +24,68 @@ import (
 
 var githubAccessToken string
 
+func main() {
+
+	// Doing: converting http to Gin and implementing controllers
+
+	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
+		AllowHeaders: []string{"access-control-allow-origin, access-control-allow-headers, authorization, origin, content-type, accept"},
+	}))
+
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
+
+	// Simply returns a link to the login route
+	//http.HandleFunc("/", rootHandler)
+	// //just a link no need for it, shows at the root of the server
+
+	// Login route
+	//http.HandleFunc("/login/github/", githubLoginHandler)
+	r.GET("/login/github/", githubLoginHandler)
+
+	// Github callback
+	//http.HandleFunc("/login/github/callback", githubCallbackHandler)
+	r.GET("/login/github/callback", githubCallbackHandler)
+
+	// Route where the authenticated user is redirected to
+	// http.HandleFunc("/loggedin", func(w http.ResponseWriter, r *http.Request) {
+	// 	loggedinHandler(w, r, "")
+	// })
+
+	r.GET("/loggedin", func(c *gin.Context) {
+		loggedinHandler(c.Writer, c.Request, "")
+	})
+
+	r.POST("/hook", controllers.GithubHooks)
+
+	r.GET("/:username", controllers.GetUser)
+
+	r.GET("/:username/repos", controllers.FetchReposByUser)
+
+	r.GET("/:username/:name", controllers.GetRepo)
+
+	// r.GET("/user/:username/repos/refresh", ) to fetch user repos all over again maybe when user clicks refresh or sth
+	// docker must be running and connected to a remote registry
+
+	r.POST("/:username/:name/deploy", func(c *gin.Context) {
+		deploymentHandler(c)
+	})
+
+	r.Run()
+
+	// fmt.Println("[ UP ON PORT 3000 ]")
+	// log.Panic(
+	// 	http.ListenAndServe(":3000", nil),
+	// )
+}
+
 func init() {
 	// loads values from .env into the system
 	if err := godotenv.Load(); err != nil {
@@ -69,8 +131,6 @@ func updateUserRepos(client *github.Client, user *github.User) {
 }
 
 func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) {
-
-	lock := false // to lock heavy operations of the code, but they're functional
 
 	ctx := context.Background()
 
@@ -118,23 +178,41 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 
 		updateUserRepos(client, user)
 
+	} else {
+		// update user token
+		controllers.UpdateUserToken(*user.Login, githubAccessToken)
 	}
+}
+
+func deploymentHandler(c *gin.Context) {
+
+	log.Println(c)
+
+	lock := false // to lock heavy operations of the code, but they're functional
+
+	//fetch user token
+	var user models.User
+	initializers.DB.Where("username = ?", c.Param("username")).First(&user)
+	githubAccessToken := user.Token
+
+	// create github client
+	client := create.NewClient(githubAccessToken)
 
 	// create deployment using controller function and specify the repo froeign key
 
 	var repoTBD models.Repo
 
-	initializers.DB.Where("name = ?", "tp_net").First(&repoTBD)
+	initializers.DB.Where("name = ?", c.Param("name")).First(&repoTBD)
 
 	controllers.AddDeployment(
 		models.Deployment{
 			RepoID:       repoTBD.ID,
-			Stack:        "React",
-			RunCommand:   "npm run start",
-			BuildCommand: "npm run build",
-			NginxPath:    "/etc/nginx/sites-available/tp_net",
-			Subdomain:    "tpnet.kli8nt.tech",
-			K8sIP:        "test",
+			Stack:        c.Query("stack"),
+			RunCommand:   c.Query("runcmd"),
+			BuildCommand: c.Query("buildcmd"),
+			NginxPath:    c.Query("nginxpath"),
+			Subdomain:    c.Query("subdomain"),
+			K8sIP:        c.Query("k8sthing"),
 		},
 	)
 
@@ -145,7 +223,7 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 
 	if !lock {
 		// create deployment
-		deployment, err := create.CreateDeployment(client, "asauce0972", "tp_net", "main", "production", "test")
+		deployment, err := create.CreateDeployment(client, c.Param("username"), repoTBD.Name, repoTBD.Branch, "production", "test")
 		if err != nil {
 			log.Panic(err)
 		}
@@ -153,58 +231,62 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 		deployment_id := deployment.GetID()
 
 		// update deployment status to success
-		deploymentStatus, err := create.CreateDeploymentStatus(client, "asauce0972", "tp_net", deployment_id, "success", "test", "http://localhost:8080/")
+		deploymentStatus, err := create.CreateDeploymentStatus(client, c.Param("username"), repoTBD.Name, deployment_id, "success", "test", "http://localhost:8080/")
 		if err != nil {
 			log.Panic(err)
+		}
+
+		if deploymentStatus.GetState() == "success" {
+			// create status check
+			_, err := create.CreateStatusCheck(client, c.Param("username"), repoTBD.Name, repoTBD.Branch, "pending", "test", "http://localhost:8080/", "test")
+			if err != nil {
+				log.Panic(err)
+			}
 		}
 
 		// set website
-		_, err = create.SetWebsite(client, "asauce0972", "tp_net", "http://localhost:8080/")
+		_, err = create.SetWebsite(client, c.Param("username"), repoTBD.Name, "https://"+c.Query("subdomain")+os.Getenv("KLI8NT_DOMAIN"))
 		if err != nil {
 			log.Panic(err)
 		}
 
-		// create status check
-		_, err = create.CreateStatusCheck(client, "asauce0972", "tp_net", "main", "pending", "test", "http://localhost:8080/", "test")
-		if err != nil {
-			log.Panic(err)
-		}
-
-		exists, err := create.HookExists(client, "asauce0972", "tp_net", "https://eovxryzicqvvnn7.m.pipedream.net")
+		exists, err := create.HookExists(client, c.Param("username"), repoTBD.Name, os.Getenv("HOOK_URL"))
 		if err != nil {
 			log.Panic(err)
 		}
 
 		if !exists {
 			// create hook
-			_, err = create.CreateHook(client, "asauce0972", "tp_net", "https://eovxryzicqvvnn7.m.pipedream.net", []string{"push"})
+			_, err = create.CreateHook(client, c.Param("username"), repoTBD.Name, os.Getenv("HOOK_URL"), []string{"push"})
 			if err != nil {
 				log.Panic(err)
 			}
 		}
 
 		// clone repo locally
-		err = imaging.CloneRepo("https://github.com/asauce0972/tp_net.git", githubAccessToken, "repos")
+		err = imaging.CloneRepo("https://github.com/"+c.Param("username")+"/"+repoTBD.Name+".git", githubAccessToken, repoTBD.Name)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
 		}
 
 		// build image and push
-		err = imaging.Build("repos", "tpnet", "latest")
+		err = imaging.Build(repoTBD.Name, repoTBD.Name, "latest")
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
 		}
 
 		// create status check success
-		_, err = create.CreateStatusCheck(client, "asauce0972", "tp_net", "main", "success", "test", "http://localhost:8080/", "test")
-		if err != nil {
-			log.Panic(err)
+		if deploymentStatus.GetState() == "success" {
+			_, err = create.CreateStatusCheck(client, c.Param("username"), repoTBD.Name, repoTBD.Branch, "success", "test", "http://localhost:8080/", "test")
+			if err != nil {
+				log.Panic(err)
+			}
 		}
 
 		// create a record in cloudflare
-		err = create.CreateCNAME(clientCloudflare, os.Getenv("CLOUDFLARE_ZONEID"), "tpnet", "tpnet.asauce0972.repl.co", false)
+		err = create.CreateCNAME(clientCloudflare, os.Getenv("CLOUDFLARE_ZONEID"), c.Query("subdomain"), repoTBD.Name+"."+c.Param("username")+".repl.co", false)
 		if err != nil {
 			log.Panic(err)
 		}
@@ -370,61 +452,4 @@ func getGithubData(accessToken string) string {
 
 	// Convert byte slice to string and return
 	return string(respbody)
-}
-
-func main() {
-
-	// Doing: converting http to Gin and implementing controllers
-
-	r := gin.Default()
-
-	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
-		AllowHeaders: []string{"access-control-allow-origin, access-control-allow-headers, authorization, origin, content-type, accept"},
-	}))
-
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-
-	// Simply returns a link to the login route
-	//http.HandleFunc("/", rootHandler)
-	// //just a link no need for it, shows at the root of the server
-
-	// Login route
-	//http.HandleFunc("/login/github/", githubLoginHandler)
-	r.GET("/login/github/", githubLoginHandler)
-
-	// Github callback
-	//http.HandleFunc("/login/github/callback", githubCallbackHandler)
-	r.GET("/login/github/callback", githubCallbackHandler)
-
-	// Route where the authenticated user is redirected to
-	// http.HandleFunc("/loggedin", func(w http.ResponseWriter, r *http.Request) {
-	// 	loggedinHandler(w, r, "")
-	// })
-
-	r.GET("/loggedin", func(c *gin.Context) {
-		loggedinHandler(c.Writer, c.Request, "")
-	})
-
-	r.GET("/user/:id", controllers.GetUser)
-
-	r.GET("/repo/:id", controllers.GetRepo)
-
-	r.GET("/user/:id/repos", controllers.FetchReposByUser)
-
-	r.POST("/github/hooks", controllers.GithubHooks)
-
-	// r.GET("/user/:id/repos/update", )
-
-	r.Run()
-
-	// fmt.Println("[ UP ON PORT 3000 ]")
-	// log.Panic(
-	// 	http.ListenAndServe(":3000", nil),
-	// )
 }

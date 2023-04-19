@@ -12,7 +12,7 @@ func AddUser(user models.User) {
 
 func GetUser(c *gin.Context) {
 	var user models.User
-	initializers.DB.First(&user, c.Param("username"))
+	initializers.DB.First(&user, "username = ?", c.Param("username"))
 	c.JSON(200, gin.H{"user": user})
 }
 

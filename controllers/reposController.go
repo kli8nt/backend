@@ -8,13 +8,17 @@ import (
 
 func GetRepo(c *gin.Context) {
 	var repo models.Repo
-	initializers.DB.First(&repo, c.Param("id"))
+	var owner models.User
+	initializers.DB.Where("username = ?", c.Param("username")).First(&owner)
+	initializers.DB.First(&repo, "owner_id = ? AND name = ?", owner.ID, c.Param("name"))
 	c.JSON(200, gin.H{"repo": repo})
 }
 
 func FetchReposByUser(c *gin.Context) {
 	var repos []models.Repo
-	initializers.DB.Find(&repos, "Owner = ?", c.Param("id"))
+	var owner models.User
+	initializers.DB.Where("username = ?", c.Param("username")).First(&owner)
+	initializers.DB.Find(&repos, "owner_id = ?", owner.ID)
 	c.JSON(200, gin.H{"repos": repos})
 }
 
