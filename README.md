@@ -13,6 +13,7 @@
 - [x] Controllers logic (90%)
 - [x] Saving and fetching data to/from DB
 - [x] Go Gin CRUDS (watch for the hook, user repos, user data etc.) (for now, still update, deplyment and hook to test)
+- [ ] Adding Security checks using github status and GetAlertsForRepo
 - [ ] Template-based container image (React, Angular... Express, Nest, Python, Java... DB)
 - [ ] Redis PubSub to communicate with the Kubernetes layer  
 - [ ] Dockerizing the whole backend for use in Google Cloud. (on it...)
