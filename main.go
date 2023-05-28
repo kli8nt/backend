@@ -12,6 +12,7 @@ import (
 
 	"github.com/adamlahbib/gitaz/cmd/create"
 	"github.com/adamlahbib/gitaz/cmd/imaging"
+	"github.com/adamlahbib/gitaz/cmd/msg"
 	"github.com/adamlahbib/gitaz/controllers"
 	"github.com/adamlahbib/gitaz/initializers"
 	"github.com/adamlahbib/gitaz/models"
@@ -24,7 +25,26 @@ import (
 
 var githubAccessToken string
 
+var mq msg.MQ
+
 func main() {
+
+	config := msg.MQConfig{
+		Host: "localhost",
+		Port: "5672",
+		User: "guest",
+		Pass: "guest",
+	}
+
+	mq = msg.MQ{}
+	mq.Init(config)
+
+	queue := mq.Queue("test")
+
+	text := "Hello World!"
+
+	body := []byte(text)
+	queue.Publish(body)
 
 	// Doing: converting http to Gin and implementing controllers
 
@@ -66,6 +86,10 @@ func main() {
 	r.POST("/hook", controllers.GithubHooks)
 
 	r.GET("/:username", controllers.GetUser)
+
+	r.GET("/:username/update", func(c *gin.Context) {
+
+	})
 
 	r.GET("/:username/repos", controllers.FetchReposByUser)
 
@@ -206,15 +230,46 @@ func deploymentHandler(c *gin.Context) {
 
 	controllers.AddDeployment(
 		models.Deployment{
-			RepoID:       repoTBD.ID,
-			Stack:        c.Query("stack"),
-			RunCommand:   c.Query("runcmd"),
-			BuildCommand: c.Query("buildcmd"),
-			NginxPath:    c.Query("nginxpath"),
-			Subdomain:    c.Query("subdomain"),
-			K8sIP:        c.Query("k8sthing"),
+			RepoID:               repoTBD.ID,
+			Stack:                c.Query("stack"),
+			Version:              c.Query("version"),
+			RepositoryURL:        c.Query("repository_url"),
+			GithubToken:          c.Query("github_token"),
+			ApplicationName:      c.Query("application_name"),
+			RunCommand:           c.Query("run_command"),
+			BuildCommand:         c.Query("build_command"),
+			InstallCommand:       c.Query("install_command"),
+			DependenciesFiles:    c.QueryArray("dependencies_files"),
+			IsStatic:             c.Query("is_static") == "true",
+			OutputDirectory:      c.Query("output_directory"),
+			EnvironmentVariables: c.Query("environment_variables"),
+			Port:                 c.Query("port"),
 		},
 	)
+
+	jBody := map[string]interface{}{
+		"stack":                 c.Query("stack"),
+		"version":               c.Query("version"),
+		"repository_url":        c.Query("repository_url"),
+		"github_token":          c.Query("github_token"),
+		"application_name":      c.Query("application_name"),
+		"run_command":           c.Query("run_command"),
+		"build_command":         c.Query("build_command"),
+		"install_command":       c.Query("install_command"),
+		"dependencies_files":    c.QueryArray("dependencies_files"),
+		"is_static":             c.Query("is_static") == "true",
+		"output_directory":      c.Query("output_directory"),
+		"environment_variables": c.Query("environment_variables"),
+		"port":                  c.Query("port"),
+	}
+
+	jsonString, err := json.Marshal(jBody)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	queue := mq.Queue("test")
+	queue.Publish(jsonString)
 
 	// create cloudflare client
 	clientCloudflare := create.NewCloudflareClient(os.Getenv("CLOUDFLARE_TOKEN"), os.Getenv("CLOUDFLARE_EMAIL"))
@@ -242,6 +297,9 @@ func deploymentHandler(c *gin.Context) {
 			if err != nil {
 				log.Panic(err)
 			}
+
+			// enable depandabot alerts for the repo
+
 		}
 
 		// set website
