@@ -16,6 +16,7 @@ import (
 	"github.com/adamlahbib/gitaz/controllers"
 	"github.com/adamlahbib/gitaz/initializers"
 	"github.com/adamlahbib/gitaz/models"
+	"github.com/cloudflare/cloudflare-go"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-github/github"
@@ -27,13 +28,15 @@ var githubAccessToken string
 
 var mq msg.MQ
 
-var clientCloudflare = create.NewCloudflareClient(os.Getenv("CLOUDFLARE_TOKEN"), os.Getenv("CLOUDFLARE_EMAIL"))
+var clientCloudflare *cloudflare.API
 
 var deploymentStatus *github.DeploymentStatus
 
 var client *github.Client
 
 func main() {
+
+	clientCloudflare = create.NewCloudflareClient(os.Getenv("CLOUDFLARE_TOKEN"), os.Getenv("CLOUDFLARE_EMAIL"))
 
 	config := msg.MQConfig{
 		Host: os.Getenv("MQHOST"),
@@ -45,7 +48,8 @@ func main() {
 	mq = msg.MQ{}
 	mq.Init(config)
 
-	queue := mq.Queue("test")
+	// make a queue
+	queue := mq.Queue("inform")
 
 	go func() {
 		queue.Consume(func(msg []byte) {
@@ -58,6 +62,8 @@ func main() {
 				"status":    `json:"status"`,
 				"appname":   `json:"appname"`,
 			}
+
+			print(string(msg))
 
 			err := json.Unmarshal(msg, &jBody)
 			if err != nil {
@@ -86,11 +92,6 @@ func main() {
 
 		})
 	}()
-
-	text := "Hello World!"
-
-	body := []byte(text)
-	queue.Publish(body)
 
 	// Doing: converting http to Gin and implementing controllers
 
@@ -317,7 +318,7 @@ func deploymentHandler(c *gin.Context) {
 		log.Panic(err)
 	}
 
-	queue := mq.Queue("test")
+	queue := mq.Queue("build")
 	queue.Publish(jsonString)
 
 	// create cloudflare client
