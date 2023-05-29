@@ -6,7 +6,7 @@ type Deployment struct {
 	gorm.Model
 	RepoID               uint
 	Repo                 Repo     `gorm:"foreignKey:RepoID;"`
-	Stack                string   `json:"stack"`
+	Technology           string   `json:"technology"`
 	Version              string   `json:"version"`
 	RepositoryURL        string   `json:"repository_url"`
 	GithubToken          string   `json:"github_token"`

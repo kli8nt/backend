@@ -9,9 +9,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/adamlahbib/gitaz/cmd/create"
-	"github.com/adamlahbib/gitaz/cmd/imaging"
 	"github.com/adamlahbib/gitaz/cmd/msg"
 	"github.com/adamlahbib/gitaz/controllers"
 	"github.com/adamlahbib/gitaz/initializers"
@@ -30,10 +30,10 @@ var mq msg.MQ
 func main() {
 
 	config := msg.MQConfig{
-		Host: "localhost",
-		Port: "5672",
-		User: "guest",
-		Pass: "guest",
+		Host: os.Getenv("MQHOST"),
+		Port: os.Getenv("MQPORT"),
+		User: os.Getenv("MQUSER"),
+		Pass: os.Getenv("MQPASS"),
 	}
 
 	mq = msg.MQ{}
@@ -231,7 +231,7 @@ func deploymentHandler(c *gin.Context) {
 	controllers.AddDeployment(
 		models.Deployment{
 			RepoID:               repoTBD.ID,
-			Stack:                c.Query("stack"),
+			Technology:           c.Query("technology"),
 			Version:              c.Query("version"),
 			RepositoryURL:        c.Query("repository_url"),
 			GithubToken:          c.Query("github_token"),
@@ -247,8 +247,10 @@ func deploymentHandler(c *gin.Context) {
 		},
 	)
 
+	dependencies := strings.Join(c.QueryArray("dependencies_files"), ":")
+
 	jBody := map[string]interface{}{
-		"stack":                 c.Query("stack"),
+		"technology":            c.Query("technology"),
 		"version":               c.Query("version"),
 		"repository_url":        c.Query("repository_url"),
 		"github_token":          c.Query("github_token"),
@@ -256,7 +258,7 @@ func deploymentHandler(c *gin.Context) {
 		"run_command":           c.Query("run_command"),
 		"build_command":         c.Query("build_command"),
 		"install_command":       c.Query("install_command"),
-		"dependencies_files":    c.QueryArray("dependencies_files"),
+		"dependencies_files":    dependencies,
 		"is_static":             c.Query("is_static") == "true",
 		"output_directory":      c.Query("output_directory"),
 		"environment_variables": c.Query("environment_variables"),
@@ -272,9 +274,9 @@ func deploymentHandler(c *gin.Context) {
 	queue.Publish(jsonString)
 
 	// create cloudflare client
-	clientCloudflare := create.NewCloudflareClient(os.Getenv("CLOUDFLARE_TOKEN"), os.Getenv("CLOUDFLARE_EMAIL"))
+	// clientCloudflare := create.NewCloudflareClient(os.Getenv("CLOUDFLARE_TOKEN"), os.Getenv("CLOUDFLARE_EMAIL"))
 
-	log.Println(clientCloudflare)
+	// log.Println(clientCloudflare)
 
 	if !lock {
 		// create deployment
@@ -322,18 +324,18 @@ func deploymentHandler(c *gin.Context) {
 		}
 
 		// clone repo locally
-		err = imaging.CloneRepo("https://github.com/"+c.Param("username")+"/"+repoTBD.Name+".git", githubAccessToken, repoTBD.Name)
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
+		// err = imaging.CloneRepo("https://github.com/"+c.Param("username")+"/"+repoTBD.Name+".git", githubAccessToken, repoTBD.Name)
+		// if err != nil {
+		// 	fmt.Println("Error:", err)
+		// 	return
+		// }
 
 		// build image and push
-		err = imaging.Build(repoTBD.Name, repoTBD.Name, "latest")
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
+		// err = imaging.Build(repoTBD.Name, repoTBD.Name, "latest")
+		// if err != nil {
+		// 	fmt.Println("Error:", err)
+		// 	return
+		// }
 
 		// create status check success
 		if deploymentStatus.GetState() == "success" {
@@ -344,12 +346,12 @@ func deploymentHandler(c *gin.Context) {
 		}
 
 		// create a record in cloudflare
-		err = create.CreateCNAME(clientCloudflare, os.Getenv("CLOUDFLARE_ZONEID"), c.Query("subdomain"), repoTBD.Name+"."+c.Param("username")+".repl.co", false)
-		if err != nil {
-			log.Panic(err)
-		}
+		// err = create.CreateCNAME(clientCloudflare, os.Getenv("CLOUDFLARE_ZONEID"), c.Query("subdomain"), repoTBD.Name+"."+c.Param("username")+".repl.co", false)
+		// if err != nil {
+		// 	log.Panic(err)
+		// }
 
-		log.Println(deploymentStatus)
+		// log.Println(deploymentStatus)
 	}
 }
 
