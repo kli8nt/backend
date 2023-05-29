@@ -19,4 +19,5 @@ type Deployment struct {
 	OutputDirectory      string   `json:"output_directory"`
 	EnvironmentVariables string   `json:"environment_variables"`
 	Port                 string   `json:"port"`
+	Status               string   `json:"status"`
 }

@@ -27,6 +27,12 @@ var githubAccessToken string
 
 var mq msg.MQ
 
+var clientCloudflare = create.NewCloudflareClient(os.Getenv("CLOUDFLARE_TOKEN"), os.Getenv("CLOUDFLARE_EMAIL"))
+
+var deploymentStatus *github.DeploymentStatus
+
+var client *github.Client
+
 func main() {
 
 	config := msg.MQConfig{
@@ -40,6 +46,46 @@ func main() {
 	mq.Init(config)
 
 	queue := mq.Queue("test")
+
+	go func() {
+		queue.Consume(func(msg []byte) {
+			// msg -> app name, status
+
+			// convert msg to json
+
+			jBody := map[string]interface{}{
+				"githuburl": `json:"githuburl"`,
+				"status":    `json:"status"`,
+				"appname":   `json:"appname"`,
+			}
+
+			err := json.Unmarshal(msg, &jBody)
+			if err != nil {
+				log.Panic(err)
+			}
+
+			// extract username and reponame from github url
+			username := strings.Split(jBody["githuburl"].(string), "/")[3]
+			repository := strings.Split(jBody["githuburl"].(string), "/")[4]
+			appname := jBody["appname"].(string)
+			status := jBody["status"].(string)
+
+			// create status check success
+
+			if deploymentStatus.GetState() == "success" {
+				_, err := create.CreateStatusCheck(client, username, repository, "main", status, "test", "https://"+appname+"kli8nt.tech", "test")
+				if err != nil {
+					log.Panic(err)
+				}
+			}
+			//create a record in cloudflare
+			err = create.CreateRecord(clientCloudflare, os.Getenv("CLOUDFLARE_ZONEID"), appname, os.Getenv("LOADBALANCER_IP"), false)
+			if err != nil {
+				log.Panic(err)
+			}
+
+		})
+	}()
 
 	text := "Hello World!"
 
@@ -180,7 +226,7 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 
 	// create github client
 	log.Println(githubAccessToken)
-	client := create.NewClient(githubAccessToken)
+	client = create.NewClient(githubAccessToken)
 
 	user, _, err := client.Users.Get(ctx, "")
 	if err != nil {
@@ -244,6 +290,7 @@ func deploymentHandler(c *gin.Context) {
 			OutputDirectory:      c.Query("output_directory"),
 			EnvironmentVariables: c.Query("environment_variables"),
 			Port:                 c.Query("port"),
+			Status:               "pending",
 		},
 	)
 
@@ -274,9 +321,8 @@ func deploymentHandler(c *gin.Context) {
 	queue.Publish(jsonString)
 
 	// create cloudflare client
-	// clientCloudflare := create.NewCloudflareClient(os.Getenv("CLOUDFLARE_TOKEN"), os.Getenv("CLOUDFLARE_EMAIL"))
 
-	// log.Println(clientCloudflare)
+	log.Println(clientCloudflare)
 
 	if !lock {
 		// create deployment
@@ -335,20 +381,6 @@ func deploymentHandler(c *gin.Context) {
 		// if err != nil {
 		// 	fmt.Println("Error:", err)
 		// 	return
-		// }
-
-		// create status check success
-		if deploymentStatus.GetState() == "success" {
-			_, err = create.CreateStatusCheck(client, c.Param("username"), repoTBD.Name, repoTBD.Branch, "success", "test", "http://localhost:8080/", "test")
-			if err != nil {
-				log.Panic(err)
-			}
-		}
-
-		// create a record in cloudflare
-		// err = create.CreateCNAME(clientCloudflare, os.Getenv("CLOUDFLARE_ZONEID"), c.Query("subdomain"), repoTBD.Name+"."+c.Param("username")+".repl.co", false)
-		// if err != nil {
-		// 	log.Panic(err)
 		// }
 
 		// log.Println(deploymentStatus)

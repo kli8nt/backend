@@ -9,12 +9,12 @@ import (
 
 // create a cname record
 
-func CreateCNAME(client *cloudflare.API, zoneID string, name string, target string, proxied bool) error {
+func CreateRecord(client *cloudflare.API, zoneID string, name string, target string, proxied bool) error {
 	ctx := context.Background()
 	record := cloudflare.CreateDNSRecordParams{
 		Content: target,
 		Name:    name,
-		Type:    "CNAME",
+		Type:    "A",
 		Comment: "Kli8nt",
 		Proxied: &proxied,
 		TTL:     3600,
