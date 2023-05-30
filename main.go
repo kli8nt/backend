@@ -49,7 +49,7 @@ func main() {
 	mq.Init(config)
 
 	// make a queue
-	queue := mq.Queue("inform")
+	queue := mq.Queue("Inform")
 
 	go func() {
 		queue.Consume(func(msg []byte) {
@@ -58,9 +58,9 @@ func main() {
 			// convert msg to json
 
 			jBody := map[string]interface{}{
-				"githuburl": `json:"githuburl"`,
+				"githuburl": `json:"github_url"`,
 				"status":    `json:"status"`,
-				"appname":   `json:"appname"`,
+				"appname":   `json:"application_name"`,
 			}
 
 			print(string(msg))
@@ -295,7 +295,13 @@ func deploymentHandler(c *gin.Context) {
 		},
 	)
 
-	dependencies := strings.Join(c.QueryArray("dependencies_files"), ":")
+	dependencies := strings.Join(c.QueryArray("dependencies_files"), ";")
+
+	iss := "false"
+
+	if c.Query("is_static") == "true" {
+		iss = "true"
+	}
 
 	jBody := map[string]interface{}{
 		"technology":            c.Query("technology"),
@@ -307,7 +313,7 @@ func deploymentHandler(c *gin.Context) {
 		"build_command":         c.Query("build_command"),
 		"install_command":       c.Query("install_command"),
 		"dependencies_files":    dependencies,
-		"is_static":             c.Query("is_static") == "true",
+		"is_static":             iss,
 		"output_directory":      c.Query("output_directory"),
 		"environment_variables": c.Query("environment_variables"),
 		"port":                  c.Query("port"),
@@ -318,7 +324,7 @@ func deploymentHandler(c *gin.Context) {
 		log.Panic(err)
 	}
 
-	queue := mq.Queue("build")
+	queue := mq.Queue("Build")
 	queue.Publish(jsonString)
 
 	// create cloudflare client
