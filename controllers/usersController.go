@@ -25,3 +25,9 @@ func UserExists(username string) bool {
 func UpdateUserToken(username string, token string) {
 	initializers.DB.Model(&models.User{}).Where("username = ?", username).Update("token", token)
 }
+
+func GetTokenByUsername(username string) string {
+	var user models.User
+	initializers.DB.First(&user, "username = ?", username)
+	return user.Token
+}

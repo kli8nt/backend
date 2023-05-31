@@ -138,16 +138,16 @@ func main() {
 	r.POST("/hook", func(c *gin.Context) {
 
 		username, reponame := controllers.GithubHooks(c)
+
 		deployment := controllers.FetchDeploymentByRepoName(reponame)
 
-		var user models.User
-		token := initializers.DB.Where("username = ?", username).First(&user).Token
+		token := controllers.GetTokenByUsername(username)
 
 		dependencies := strings.Join(deployment.DependenciesFiles, ";")
 
 		iss := "false"
 
-		if deployment.IsStatic == true {
+		if deployment.IsStatic {
 			iss = "true"
 		}
 
