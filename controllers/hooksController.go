@@ -11,8 +11,8 @@ func GithubHooks(c *gin.Context) (string, string) {
 	// extract username, reponame from the request
 	type Payload struct {
 		Repository struct {
-			FullName string `json:"full_name"`
-			Owner    struct {
+			Name  string `json:"name"`
+			Owner struct {
 				Login string `json:"login"`
 			} `json:"owner"`
 		} `json:"repository"`
@@ -25,7 +25,7 @@ func GithubHooks(c *gin.Context) (string, string) {
 		log.Panic(err)
 	}
 	username := p.Repository.Owner.Login
-	reponame := p.Repository.FullName
+	reponame := p.Repository.Name
 
 	return username, reponame
 
