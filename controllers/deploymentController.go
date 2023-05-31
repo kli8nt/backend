@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"fmt"
+
 	"github.com/adamlahbib/gitaz/initializers"
 	"github.com/adamlahbib/gitaz/models"
 )
@@ -19,6 +21,8 @@ func FetchDeploymentByRepoName(repoName string) models.Deployment {
 
 func FetchDeploymentsByUsername(username string) []models.Deployment {
 	var deployments []models.Deployment
-	initializers.DB.Find(&deployments, "username = ?", username)
+	initializers.DB.Find(&deployments)
+	fmt.Println(deployments)
+	// initializers.DB.Find(&deployments, "username = ?", username)
 	return deployments
 }

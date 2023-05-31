@@ -80,7 +80,7 @@ func main() {
 			// create status check success
 
 			if deploymentStatus.GetState() == "success" {
-				_, err := create.CreateStatusCheck(client, username, repository, "main", status, "test", "https://"+appname+"kli8nt.tech", "test")
+				_, err := create.CreateStatusCheck(client, username, repository, "main", status, "test", "https://"+appname+".kli8nt.tech", "test")
 				if err != nil {
 					log.Panic(err)
 				}
@@ -238,6 +238,7 @@ func main() {
 	})
 
 	r.GET("/repos", func(ctx *gin.Context) {
+
 		token := ctx.GetHeader("Authorization")
 
 		if token == "" || len(strings.Split(token, " ")) != 2 {
@@ -378,7 +379,7 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 
 	// REDIRECT
 	frontendUrl := os.Getenv("FRONT_URL")
-	http.Redirect(w, r, frontendUrl+"/?token="+githubAccessToken, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, frontendUrl+"/apps/new?token="+githubAccessToken, http.StatusTemporaryRedirect)
 }
 
 func deploymentHandler(c *gin.Context, username string, token string) {
@@ -435,7 +436,7 @@ func deploymentHandler(c *gin.Context, username string, token string) {
 		"repository_url":        c.PostForm("repository_url"),
 		"github_token":          token,
 		"application_name":      c.PostForm("application_name"),
-		"run_command":           c.PostForm("run_command"),
+		"run_command":           strings.Split(c.PostForm("run_command"), " "),
 		"build_command":         c.PostForm("build_command"),
 		"install_command":       c.PostForm("install_command"),
 		"dependencies_files":    dependencies,
@@ -468,22 +469,28 @@ func deploymentHandler(c *gin.Context, username string, token string) {
 
 		// update deployment status to success
 		frontEnd := os.Getenv("FRONT_URL")
-		deploymentStatus, err := create.CreateDeploymentStatus(client, username, repoTBD.Name, deployment_id, "success", "test", frontEnd+"/apps/dep/"+string(deployment_id))
+		target := "https://" + c.PostForm("application_name") + "." + os.Getenv("KLI8NT_DOMAIN")
+		logsUrl := frontEnd+"/apps/dep/"+fmt.Sprint(deployment_id)
+		__, err := create.CreateDeploymentStatus(client, username, repoTBD.Name, deployment_id, "success", "test", frontEnd+"/apps/dep/"+fmt.Sprint(deployment_id))
+		if err != nil {
+			log.Panic(err)
+		}
+		fmt.Println(__)
+
+		_, err = create.CreateStatusCheck(client, username, repoTBD.Name, repoTBD.Branch, "success", "test", logsUrl, "test")
 		if err != nil {
 			log.Panic(err)
 		}
 
-		target := "https://" + c.PostForm("application_name") + "." + os.Getenv("KLI8NT_DOMAIN")
-		if deploymentStatus.GetState() == "success" {
-			// create status check
-			_, err := create.CreateStatusCheck(client, username, repoTBD.Name, repoTBD.Branch, "pending", "test", target, "test")
-			if err != nil {
-				log.Panic(err)
-			}
+		// if deploymentStatus.GetState() == "success" {
+		// 	// create status check
+		// 	_, err := create.CreateStatusCheck(client, username, repoTBD.Name, repoTBD.Branch, "pending", "test", logsUrl, "test")
+		// 	if err != nil {
+		// 		log.Panic(err)
+		// 	}
 
-			// enable depandabot alerts for the repo
-
-		}
+		// 	// enable depandabot alerts for the repo
+		// }
 
 		// set website
 		_, err = create.SetWebsite(client, username, repoTBD.Name, target)
