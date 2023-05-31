@@ -22,6 +22,14 @@ func FetchReposByUser(c *gin.Context) {
 	c.JSON(200, gin.H{"repos": repos})
 }
 
+func FetchReposByUsername(c *gin.Context, username string) {
+	var repos []models.Repo
+	var owner models.User
+	initializers.DB.Where("username = ?", username).First(&owner)
+	initializers.DB.Find(&repos, "owner_id = ?", owner.ID)
+	c.JSON(200, gin.H{"repos": repos})
+}
+
 func AddUserRepository(repo models.Repo) {
 	initializers.DB.Create(&repo)
 }

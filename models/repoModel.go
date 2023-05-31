@@ -7,5 +7,6 @@ type Repo struct {
 	OwnerID uint
 	Owner   User   `gorm:"foreignKey:OwnerID;"`
 	Name    string `json:"name"`
+	RepoUrl    string `json:"repo_url"`
 	Branch  string `json:"branch"`
 }

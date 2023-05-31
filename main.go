@@ -137,10 +137,39 @@ func main() {
 
 	r.POST("/hook", controllers.GithubHooks)
 
+	r.POST("/deploy", func(c *gin.Context) {
+		deploymentHandler(c)
+	})
+	
 	r.GET("/:username", controllers.GetUser)
 
 	r.GET("/:username/update", func(c *gin.Context) {
 
+	})
+
+	r.GET("/repos", func(ctx *gin.Context) {
+		token := ctx.GetHeader("Authorization")
+
+		if token == "" || len(strings.Split(token, " ")) != 2 {
+			ctx.JSON(401, gin.H{
+				"message": "Unauthorized",
+			})
+			return
+		}
+
+		token = strings.Split(token, " ")[1]
+		userDataAsString := getGithubUsersData(token)
+
+		userData := map[string]interface{}{}
+		err := json.Unmarshal([]byte(userDataAsString), &userData)
+		if err != nil {
+			ctx.JSON(500, gin.H{
+				"message": "Internal Server Error",
+			})
+			return
+		}
+
+		controllers.FetchReposByUsername(ctx, userData["login"].(string))
 	})
 
 	r.GET("/:username/repos", controllers.FetchReposByUser)
@@ -150,9 +179,7 @@ func main() {
 	// r.GET("/user/:username/repos/refresh", ) to fetch user repos all over again maybe when user clicks refresh or sth
 	// docker must be running and connected to a remote registry
 
-	r.POST("/:username/:name/deploy", func(c *gin.Context) {
-		deploymentHandler(c)
-	})
+	
 
 	r.Run()
 
@@ -202,6 +229,7 @@ func updateUserRepos(client *github.Client, user *github.User) {
 			OwnerID: owner.ID, // Set the ID of the user in the database
 			Name:    *repo.Name,
 			Branch:  *repo.DefaultBranch,
+			RepoUrl: *repo.CloneURL,
 		})
 	}
 }
@@ -228,7 +256,7 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 	}
 
 	// Return the prettified JSON as a string
-	fmt.Fprintf(w, string(prettyJSON.Bytes()))
+	// fmt.Fprintf(w, string(prettyJSON.Bytes()))
 
 	// create github client
 	log.Println(githubAccessToken)
@@ -257,7 +285,12 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 	} else {
 		// update user token
 		controllers.UpdateUserToken(*user.Login, githubAccessToken)
+
 	}
+
+	// REDIRECT
+	frontendUrl := os.Getenv("FRONT_URL")
+	http.Redirect(w, r, frontendUrl+"/?token="+githubAccessToken, http.StatusTemporaryRedirect)
 }
 
 func deploymentHandler(c *gin.Context) {
@@ -283,19 +316,19 @@ func deploymentHandler(c *gin.Context) {
 	controllers.AddDeployment(
 		models.Deployment{
 			RepoID:               repoTBD.ID,
-			Technology:           c.Query("technology"),
-			Version:              c.Query("version"),
-			RepositoryURL:        c.Query("repository_url"),
-			GithubToken:          c.Query("github_token"),
-			ApplicationName:      c.Query("application_name"),
-			RunCommand:           c.Query("run_command"),
-			BuildCommand:         c.Query("build_command"),
-			InstallCommand:       c.Query("install_command"),
-			DependenciesFiles:    c.QueryArray("dependencies_files"),
-			IsStatic:             c.Query("is_static") == "true",
-			OutputDirectory:      c.Query("output_directory"),
-			EnvironmentVariables: c.Query("environment_variables"),
-			Port:                 c.Query("port"),
+			Technology:           c.PostForm("technology"),
+			Version:              c.PostForm("version"),
+			RepositoryURL:        c.PostForm("repository_url"),
+			GithubToken:          c.PostForm("github_token"),
+			ApplicationName:      c.PostForm("application_name"),
+			RunCommand:           c.PostForm("run_command"),
+			BuildCommand:         c.PostForm("build_command"),
+			InstallCommand:       c.PostForm("install_command"),
+			DependenciesFiles:    strings.Split(c.PostForm("dependencies_files"), ","),
+			IsStatic:             c.PostForm("is_static") == "true",
+			OutputDirectory:      c.PostForm("output_directory"),
+			EnvironmentVariables: c.PostForm("environment_variables"),
+			Port:                 c.PostForm("port"),
 			Status:               "pending",
 		},
 	)
@@ -533,6 +566,37 @@ func getGithubData(accessToken string) string {
 	req, reqerr := http.NewRequest(
 		"GET",
 		"https://api.github.com/user/repos",
+		nil,
+	)
+	if reqerr != nil {
+		log.Panic("API Request creation failed")
+	}
+
+	// Set the Authorization header before sending the request
+	// Authorization: token XXXXXXXXXXXXXXXXXXXXXXXXXXX
+	log.Println("Access token: ", accessToken)
+	authorizationHeaderValue := fmt.Sprintf("token %s", accessToken)
+	req.Header.Set("Authorization", authorizationHeaderValue)
+
+	// Make the request
+	resp, resperr := http.DefaultClient.Do(req)
+	if resperr != nil {
+		log.Panic("Request failed")
+	}
+
+	// Read the response as a byte slice
+	respbody, _ := ioutil.ReadAll(resp.Body)
+
+	// Convert byte slice to string and return
+	return string(respbody)
+}
+
+
+func getGithubUsersData(accessToken string) string {
+	// Get request to a set URL
+	req, reqerr := http.NewRequest(
+		"GET",
+		"https://api.github.com/user",
 		nil,
 	)
 	if reqerr != nil {
