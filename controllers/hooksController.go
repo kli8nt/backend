@@ -1,7 +1,32 @@
 package controllers
 
-import "github.com/gin-gonic/gin"
+import (
+	"log"
 
-func GithubHooks(c *gin.Context) {
-	c.JSON(200, gin.H{"message": "got a hook!"})
+	"github.com/gin-gonic/gin"
+)
+
+func GithubHooks(c *gin.Context) (string, string) {
+
+	// extract username, reponame from the request
+	type Payload struct {
+		Repository struct {
+			FullName string `json:"full_name"`
+			Owner    struct {
+				Login string `json:"login"`
+			} `json:"owner"`
+		} `json:"repository"`
+	}
+
+	var p Payload
+
+	if err := c.BindJSON(&p); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		log.Panic(err)
+	}
+	username := p.Repository.Owner.Login
+	reponame := p.Repository.FullName
+
+	return username, reponame
+
 }
