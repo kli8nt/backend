@@ -32,6 +32,7 @@ func Build(path string, imName string, imTag string) error {
 	deleteMap := map[string][]byte{
 		"usr/share/nginx/.wh.html": []byte{},
 	}
+
 	deleteLayer, err := crane.Layer(deleteMap)
 	if err != nil {
 		panic(err)

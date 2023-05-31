@@ -21,6 +21,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-github/github"
 
+	_ "github.com/adamlahbib/gitaz/lib"
 	"github.com/joho/godotenv"
 )
 
@@ -107,6 +108,10 @@ func main() {
 		c.JSON(200, gin.H{
 			"message": "pong",
 		})
+	})
+
+	r.GET("/logs/:app", func(c *gin.Context) {
+		controllers.HandleLogsStreamingSocket(c)
 	})
 
 	// Simply returns a link to the login route
