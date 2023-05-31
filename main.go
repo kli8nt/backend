@@ -202,6 +202,35 @@ func main() {
 		deploymentHandler(ctx, userData["login"].(string), token)
 	})
 
+	r.GET("/apps", func(ctx *gin.Context) {
+		token := ctx.GetHeader("Authorization")
+
+		if token == "" || len(strings.Split(token, " ")) != 2 {
+			ctx.JSON(401, gin.H{
+				"message": "Unauthorized",
+			})
+			return
+		}
+
+		token = strings.Split(token, " ")[1]
+		userDataAsString := getGithubUsersData(token)
+
+		userData := map[string]interface{}{}
+		err := json.Unmarshal([]byte(userDataAsString), &userData)
+		if err != nil {
+			ctx.JSON(500, gin.H{
+				"message": "Internal Server Error",
+			})
+			return
+		}
+
+		deployments := controllers.FetchDeploymentsByUsername(userData["login"].(string))
+
+		ctx.JSON(200, gin.H{
+			"deployments": deployments,
+		})
+	})
+
 	r.GET("/:username", controllers.GetUser)
 
 	r.GET("/:username/update", func(c *gin.Context) {
@@ -239,8 +268,6 @@ func main() {
 
 	// r.GET("/user/:username/repos/refresh", ) to fetch user repos all over again maybe when user clicks refresh or sth
 	// docker must be running and connected to a remote registry
-
-	
 
 	r.Run()
 
@@ -441,11 +468,11 @@ func deploymentHandler(c *gin.Context, username string, token string) {
 
 		// update deployment status to success
 		frontEnd := os.Getenv("FRONT_URL")
-		deploymentStatus, err := create.CreateDeploymentStatus(client, username, repoTBD.Name, deployment_id, "success", "test", frontEnd + "/apps/dep/" + string(deployment_id))
+		deploymentStatus, err := create.CreateDeploymentStatus(client, username, repoTBD.Name, deployment_id, "success", "test", frontEnd+"/apps/dep/"+string(deployment_id))
 		if err != nil {
 			log.Panic(err)
 		}
-		
+
 		target := "https://" + c.PostForm("application_name") + "." + os.Getenv("KLI8NT_DOMAIN")
 		if deploymentStatus.GetState() == "success" {
 			// create status check
@@ -653,7 +680,6 @@ func getGithubData(accessToken string) string {
 	// Convert byte slice to string and return
 	return string(respbody)
 }
-
 
 func getGithubUsersData(accessToken string) string {
 	// Get request to a set URL

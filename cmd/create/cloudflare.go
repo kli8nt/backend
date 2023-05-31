@@ -29,4 +29,4 @@ func CreateRecord(client *cloudflare.API, zoneID string, name string, target str
 	return nil
 }
 
-// TODO: delete a cname record
+// TODO: delete a canme record
