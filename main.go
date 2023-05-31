@@ -177,10 +177,31 @@ func main() {
 
 	})
 
-	r.POST("/deploy", func(c *gin.Context) {
-		deploymentHandler(c)
+	r.POST("/deploy", func(ctx *gin.Context) {
+		token := ctx.GetHeader("Authorization")
+
+		if token == "" || len(strings.Split(token, " ")) != 2 {
+			ctx.JSON(401, gin.H{
+				"message": "Unauthorized",
+			})
+			return
+		}
+
+		token = strings.Split(token, " ")[1]
+		userDataAsString := getGithubUsersData(token)
+
+		userData := map[string]interface{}{}
+		err := json.Unmarshal([]byte(userDataAsString), &userData)
+		if err != nil {
+			ctx.JSON(500, gin.H{
+				"message": "Internal Server Error",
+			})
+			return
+		}
+
+		deploymentHandler(ctx, userData["login"].(string), token)
 	})
-	
+
 	r.GET("/:username", controllers.GetUser)
 
 	r.GET("/:username/update", func(c *gin.Context) {
@@ -333,7 +354,7 @@ func loggedinHandler(w http.ResponseWriter, r *http.Request, githubData string) 
 	http.Redirect(w, r, frontendUrl+"/?token="+githubAccessToken, http.StatusTemporaryRedirect)
 }
 
-func deploymentHandler(c *gin.Context) {
+func deploymentHandler(c *gin.Context, username string, token string) {
 
 	log.Println(c)
 
@@ -341,7 +362,7 @@ func deploymentHandler(c *gin.Context) {
 
 	//fetch user token
 	var user models.User
-	initializers.DB.Where("username = ?", c.Param("username")).First(&user)
+	initializers.DB.Where("username = ?", username).First(&user)
 	githubAccessToken := user.Token
 
 	// create github client
@@ -351,7 +372,7 @@ func deploymentHandler(c *gin.Context) {
 
 	var repoTBD models.Repo
 
-	initializers.DB.Where("name = ?", c.Param("name")).First(&repoTBD)
+	initializers.DB.Where("repo_url = ?", c.PostForm("repository_url")).First(&repoTBD)
 
 	controllers.AddDeployment(
 		models.Deployment{
@@ -359,7 +380,7 @@ func deploymentHandler(c *gin.Context) {
 			Technology:           c.PostForm("technology"),
 			Version:              c.PostForm("version"),
 			RepositoryURL:        c.PostForm("repository_url"),
-			GithubToken:          c.PostForm("github_token"),
+			GithubToken:          token,
 			ApplicationName:      c.PostForm("application_name"),
 			RunCommand:           c.PostForm("run_command"),
 			BuildCommand:         c.PostForm("build_command"),
@@ -373,28 +394,28 @@ func deploymentHandler(c *gin.Context) {
 		},
 	)
 
-	dependencies := strings.Join(c.QueryArray("dependencies_files"), ";")
+	dependencies := strings.Join(strings.Split(c.PostForm("dependencies_files"), ","), ";")
 
 	iss := "false"
 
-	if c.Query("is_static") == "true" {
+	if c.PostForm("is_static") == "true" {
 		iss = "true"
 	}
 
 	jBody := map[string]interface{}{
-		"technology":            c.Query("technology"),
-		"version":               c.Query("version"),
-		"repository_url":        c.Query("repository_url"),
-		"github_token":          c.Query("github_token"),
-		"application_name":      c.Query("application_name"),
-		"run_command":           c.Query("run_command"),
-		"build_command":         c.Query("build_command"),
-		"install_command":       c.Query("install_command"),
+		"technology":            c.PostForm("technology"),
+		"version":               c.PostForm("version"),
+		"repository_url":        c.PostForm("repository_url"),
+		"github_token":          token,
+		"application_name":      c.PostForm("application_name"),
+		"run_command":           c.PostForm("run_command"),
+		"build_command":         c.PostForm("build_command"),
+		"install_command":       c.PostForm("install_command"),
 		"dependencies_files":    dependencies,
 		"is_static":             iss,
-		"output_directory":      c.Query("output_directory"),
-		"environment_variables": c.Query("environment_variables"),
-		"port":                  c.Query("port"),
+		"output_directory":      c.PostForm("output_directory"),
+		"environment_variables": c.PostForm("environment_variables"),
+		"port":                  c.PostForm("port"),
 	}
 
 	jsonString, err := json.Marshal(jBody)
@@ -411,7 +432,7 @@ func deploymentHandler(c *gin.Context) {
 
 	if !lock {
 		// create deployment
-		deployment, err := create.CreateDeployment(client, c.Param("username"), repoTBD.Name, repoTBD.Branch, "production", "test")
+		deployment, err := create.CreateDeployment(client, username, repoTBD.Name, repoTBD.Branch, "production", "test")
 		if err != nil {
 			log.Panic(err)
 		}
@@ -419,14 +440,16 @@ func deploymentHandler(c *gin.Context) {
 		deployment_id := deployment.GetID()
 
 		// update deployment status to success
-		deploymentStatus, err := create.CreateDeploymentStatus(client, c.Param("username"), repoTBD.Name, deployment_id, "success", "test", "http://localhost:8080/")
+		frontEnd := os.Getenv("FRONT_URL")
+		deploymentStatus, err := create.CreateDeploymentStatus(client, username, repoTBD.Name, deployment_id, "success", "test", frontEnd + "/apps/dep/" + string(deployment_id))
 		if err != nil {
 			log.Panic(err)
 		}
-
+		
+		target := "https://" + c.PostForm("application_name") + "." + os.Getenv("KLI8NT_DOMAIN")
 		if deploymentStatus.GetState() == "success" {
 			// create status check
-			_, err := create.CreateStatusCheck(client, c.Param("username"), repoTBD.Name, repoTBD.Branch, "pending", "test", "http://localhost:8080/", "test")
+			_, err := create.CreateStatusCheck(client, username, repoTBD.Name, repoTBD.Branch, "pending", "test", target, "test")
 			if err != nil {
 				log.Panic(err)
 			}
@@ -436,19 +459,19 @@ func deploymentHandler(c *gin.Context) {
 		}
 
 		// set website
-		_, err = create.SetWebsite(client, c.Param("username"), repoTBD.Name, "https://"+c.Query("subdomain")+os.Getenv("KLI8NT_DOMAIN"))
+		_, err = create.SetWebsite(client, username, repoTBD.Name, target)
 		if err != nil {
 			log.Panic(err)
 		}
 
-		exists, err := create.HookExists(client, c.Param("username"), repoTBD.Name, os.Getenv("HOOK_URL"))
+		exists, err := create.HookExists(client, username, repoTBD.Name, os.Getenv("HOOK_URL"))
 		if err != nil {
 			log.Panic(err)
 		}
 
 		if !exists {
 			// create hook
-			_, err = create.CreateHook(client, c.Param("username"), repoTBD.Name, os.Getenv("HOOK_URL"), []string{"push"})
+			_, err = create.CreateHook(client, username, repoTBD.Name, os.Getenv("HOOK_URL"), []string{"push"})
 			if err != nil {
 				log.Panic(err)
 			}
