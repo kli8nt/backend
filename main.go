@@ -470,7 +470,7 @@ func deploymentHandler(c *gin.Context, username string, token string) {
 		// update deployment status to success
 		frontEnd := os.Getenv("FRONT_URL")
 		target := "https://" + c.PostForm("application_name") + "." + os.Getenv("KLI8NT_DOMAIN")
-		logsUrl := frontEnd+"/apps/dep/"+fmt.Sprint(deployment_id)
+		logsUrl := frontEnd + "/apps/dep/" + fmt.Sprint(deployment_id)
 		__, err := create.CreateDeploymentStatus(client, username, repoTBD.Name, deployment_id, "success", "test", frontEnd+"/apps/dep/"+fmt.Sprint(deployment_id))
 		if err != nil {
 			log.Panic(err)
@@ -575,10 +575,11 @@ func githubLoginHandler(c *gin.Context) {
 	githubClientID := getGithubClientID()
 
 	// Create the dynamic redirect URL for login
+	backendUrl := os.Getenv("BACK_URL")
 	redirectURL := fmt.Sprintf(
 		"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s",
 		githubClientID,
-		"http://localhost:3000/login/github/callback",
+		backendUrl+"/login/github/callback",
 	)
 
 	// add scopes X-OAuth-Scopes: repo, user
