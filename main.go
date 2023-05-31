@@ -135,7 +135,47 @@ func main() {
 		loggedinHandler(c.Writer, c.Request, "")
 	})
 
-	r.POST("/hook", controllers.GithubHooks)
+	r.POST("/hook", func(c *gin.Context) {
+
+		username, reponame := controllers.GithubHooks(c)
+
+		deployment := controllers.FetchDeploymentByRepoName(reponame)
+
+		token := controllers.GetTokenByUsername(username)
+
+		dependencies := strings.Join(deployment.DependenciesFiles, ";")
+
+		iss := "false"
+
+		if deployment.IsStatic {
+			iss = "true"
+		}
+
+		jBody := map[string]interface{}{
+			"technology":            deployment.Technology,
+			"version":               deployment.Version,
+			"repository_url":        deployment.RepositoryURL,
+			"github_token":          token,
+			"application_name":      deployment.ApplicationName,
+			"run_command":           deployment.RunCommand,
+			"build_command":         deployment.BuildCommand,
+			"install_command":       deployment.InstallCommand,
+			"dependencies_files":    dependencies,
+			"is_static":             iss,
+			"output_directory":      deployment.OutputDirectory,
+			"environment_variables": deployment.EnvironmentVariables,
+			"port":                  deployment.Port,
+		}
+
+		jsonString, err := json.Marshal(jBody)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		queue := mq.Queue("Build")
+		queue.Publish(jsonString)
+
+	})
 
 	r.POST("/deploy", func(c *gin.Context) {
 		deploymentHandler(c)
